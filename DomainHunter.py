@@ -24,7 +24,6 @@ tld = 'com'
 
 
 # Import----------------------------------------------------------------
-
 import requests
 import time
 import json
