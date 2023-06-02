@@ -1,6 +1,9 @@
 # Domain Hunter
 
-# Edit these variables------------------------------
+
+
+
+# Edit these variables---------------------------------------------------------
 # Domain Length (must be atleast 5 letters)
 domain_length = 5
 # Count of domains to check per API call (500 max)
@@ -9,9 +12,12 @@ chunk_size = 500
 max_price = 1000000
 #Define the top level domain ('com', 'net'...)
 tld = 'com'
+# -----------------------------------------------------------------------------
 
-# --------------------------------------------------
 
+
+
+# Prep the API and word frequency table----------------------------------------
 import requests
 import time
 import json
@@ -30,11 +36,16 @@ headers = {"Authorization" : "sso-key {}:{}".format(api_key, secret_key)}
     # Words shorting than domain_length are too short to be useful.
 word_freq = pd.read_csv('unigram_freq.csv')
 word_freq['len']  = word_freq['word'].str.len()
-word_freq=word_freq.iloc[:100000] # TEMP IMPORTANT
+word_freq=word_freq.iloc[:100000]
 word_freq=word_freq[word_freq['len']>=domain_length]
 word_freq.drop(columns=(['len']),inplace=True)
 word_freq.reset_index(inplace=True)
+# -----------------------------------------------------------------------------
 
+
+
+
+# Generating Pronouncable Words------------------------------------------------
 # To make pronouncable words, we will overlap two existing words making sure
 # they have atleast 3 letters of overlap and ensuring that the start of one
 # word is the start of our generated word and the end of the other word is the
@@ -74,19 +85,29 @@ generated_words.drop(columns=['a_letters','b_letters','a_count','b_count'],inpla
 generated_words.sort_values('frequency',ascending=False,inplace=True)
 # What value is set for keep doesn't matter.
 generated_words.drop_duplicates('word',keep='last',inplace=True)
+# -----------------------------------------------------------------------------
 
+
+
+
+# Break into Chunks------------------------------------------------------------
 all_domains = list(map(('{}.'+tld).format, list(generated_words['word'])))
-
 # Break all_domains into chunks
 def split_up(array, size):
     for i in range(0, len(array), size): yield array[i:i + size]
 domain_chunks = list(split_up(all_domains, chunk_size))
+# -----------------------------------------------------------------------------
 
-# For each domain chunk (ex. 500 domains)
+
+
+
+# Run through API and return results-------------------------------------------
 counter=0
 found_domains = {}
+print('')
 print('Working through chunks and checking availability.')
 print('The Godaddy API is imperfect, and some of the results is says are available are not.')
+print('If you have seen enough results, manually stop the kernel.')
 for domains in domain_chunks:
     counter+=1
     # Get availability by calling availability API
@@ -101,3 +122,4 @@ for domains in domain_chunks:
     print('Completed {} of {}'.format(str(counter),str(len(domain_chunks))),'-'*(30-(len(str(counter)+str(len(domain_chunks))))))
     # API call frequency should be ~ 30 calls per minute 
     time.sleep(2)
+# -----------------------------------------------------------------------------
