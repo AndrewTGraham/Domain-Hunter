@@ -1,3 +1,6 @@
+Written by Andrew Graham
+Originally written Feb 11 2023, but later modified and uploaded to github Jun 1-2 2023.
+
 Purpose
 This code will create pronouncable worklike strings and check if they are available and within your price range. All of the 4 letter alphabetic domains are claimed. When looking for 5 or 6 letter alphabetic domains, many domains are available but most of them are nonpronouncable like zxmpp.com. However, there are still a few pronouncable domains available, but they are hard to find. Using this script, I have identified and purchased the following domains in Feb '24:
 dairn.com
