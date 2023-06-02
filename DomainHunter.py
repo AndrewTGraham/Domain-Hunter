@@ -1,87 +1,104 @@
 # Domain Hunter
 
-# Count of domains to check per API call. 
-# 500 is the max.
+# Edit these variables------------------------------
+# Domain Length (must be atleast 5 letters)
+domain_length = 5
+# Count of domains to check per API call (500 max)
 chunk_size = 500
-
-# Price range in USD you are willing to pay for a domain.
-min_price = 0
+# Price in USD you are willing to pay for a domain.
 max_price = 1000000
+# --------------------------------------------------
 
 import requests
 import time
 import json
 import pandas as pd
 
-with open('GodaddyKeys.txt') as f:
-    GodaddyKeys = f.readlines()
-
-
+# Read the keys from their file and prep for the API call.
+with open('GodaddyKeys.txt') as f: GodaddyKeys = f.readlines()
 api_key = GodaddyKeys[0].strip()
 secret_key = GodaddyKeys[1].strip()
 url = "https://api.godaddy.com/v1/domains/available"
-
-# API key and secret are sent in the header
 headers = {"Authorization" : "sso-key {}:{}".format(api_key, secret_key)}
 
+# Load and prep the word_freq dataframe
+    # Only use the first 100000 words because around there the words start
+    # appearing ridiculous.
+    # Words shorting than domain_length are too short to be useful.
+word_freq = pd.read_csv('unigram_freq.csv')
+word_freq['len']  = word_freq['word'].str.len()
+# word_freq=word_freq.iloc[:100000] # TEMP IMPORTANT
+word_freq=word_freq.iloc[:2000]
+word_freq=word_freq[word_freq['len']>=domain_length]
+word_freq.drop(columns=(['len']),inplace=True)
+word_freq.reset_index(inplace=True)
 
+# To make pronouncable words, we will overlap two existing words making sure
+# they have atleast 3 letters of overlap and ensuring that the start of one
+# word is the start of our generated word and the end of the other word is the
+# end of our generated word. For example numBER and iceBERg can make numberg.
+# Create two dataframes (word_starts and word_ends__) which contain the start
+# and end of words where the end of the start and the start of the end are the
+# overlap portions. The column start_len in word_starts is the length of
+# letters, but in word_ends__ is the length of the word_starts letters needed
+# to create a word of domain_length (foreign key). word_ends__ letters column
+# not have the overlap letters so I can join them easily later.
+word_starts = pd.DataFrame(columns = ['a_letters', 'a_count', 'overlap','start_len'])
+word_ends__ = pd.DataFrame(columns = ['b_letters', 'b_count', 'overlap','start_len'])
+print('words to process:',len(word_freq))
+for index, val in word_freq.iterrows():
+    if index % 1000 == 0: print('words processed:',index)
+    character_len=3
+    while character_len <= domain_length and character_len  <= len(val['word']):
+        word_starts.loc[len(word_starts), word_starts.columns] = val['word'][:character_len],      val['count'], val['word'][:character_len][-3:],   character_len
+        if -1*character_len+3 != 0: # if -1*character_len+3 == 0, you end up
+        # indexing [-0:] which rather than returning nothing, returns
+        # everything
+            word_ends__.loc[len(word_ends__), word_ends__.columns] = val['word'][-1*character_len+3:], val['count'], val['word'][-1*character_len:][:3], domain_length+3-character_len
+        character_len+=1
+        
+# Some sets of letters will appear multiple times from having been in multiple
+# words; I need to combine them.
+word_starts=word_starts.groupby(['a_letters', 'overlap','start_len']).sum()
+word_ends__=word_ends__.groupby(['b_letters', 'overlap','start_len']).sum()
+word_starts.reset_index(inplace=True)
+word_ends__.reset_index(inplace=True)
+# Merge the word starts with the word end and score their frequency based on
+# the min of the frequency of each.
+generated_words = word_starts.merge(word_ends__,on=['overlap','start_len'],how='inner').drop(columns=['overlap','start_len'])
+generated_words['word'] = generated_words['a_letters'] + generated_words['b_letters']
+generated_words['frequency']=generated_words[['a_count','b_count']].min(axis=1)
+generated_words.drop(columns=['a_letters','b_letters','a_count','b_count'],inplace=True)
+generated_words.sort_values('frequency',ascending=False,inplace=True)
+# What value is set for keep doesn't matter.
+generated_words.drop_duplicates('word',keep='last',inplace=True)
 
-df = pd.read_csv('unigram_freq.csv')
+# # all_domains = list(map('{}.com'.format, list(df[df['len']==11]['word'])))
 
-df['len']  = df['word'].str.len()
+# all_domains = list(map('{}.com'.format, list(df['word'])))
 
-df=df.iloc[:100000]
-
-df=df[df['len']>=6]
-
-df['first5']=df['word'].str[:5]
-df['last5']=df['word'].str[-5:]
-df['firstoverlap']=df['first5'].str[-4:]
-df['lastoverlap']=df['last5'].str[:4]
-dffirst=df[['first5','firstoverlap','count']].copy(deep=True).rename(columns={'firstoverlap':'overlap','count':'firstcount'})
-dflast=df[['last5','lastoverlap','count']].copy(deep=True).rename(columns={'lastoverlap':'overlap','count':'lastcount'})
-
-dffirst=dffirst.groupby(['first5','overlap']).sum()
-dffirst.reset_index(inplace=True)
-
-dflast=dflast.groupby(['last5','overlap']).sum()
-dflast.reset_index(inplace=True)
-
-df = dffirst.merge(dflast,on='overlap',how='inner')
-df['word']=df['first5']+df['last5'].str[-1]
-
-df['priority']=df[['firstcount','lastcount']].min(axis=1)
-
-df.sort_values('priority',ascending=False,inplace=True)
-
-df.drop_duplicates('word',keep='first',inplace=True)
-
-# all_domains = list(map('{}.com'.format, list(df[df['len']==11]['word'])))
-
-all_domains = list(map('{}.com'.format, list(df['word'])))
-
-# This function splits all domains into chunks
-# of a given size
-def chunks(array, size):
-    for i in range(0, len(array), size):
-        yield array[i:i + size]
-# Split the original array into subarrays
-domain_chunks = list(chunks(all_domains, chunk_size))
+# # This function splits all domains into chunks
+# # of a given size
+# def chunks(array, size):
+#     for i in range(0, len(array), size):
+#         yield array[i:i + size]
+# # Split the original array into subarrays
+# domain_chunks = list(chunks(all_domains, chunk_size))
  
-# For each domain chunk (ex. 500 domains)
-counter=0
-found_domains = {}
-for domains in domain_chunks:
-    counter+=1
-    # Get availability information by calling availability API
-    availability_res = requests.post(url, json=domains, headers=headers)
-    # Get only available domains with price range
-    for domain in json.loads(availability_res.text)["domains"]:
-        if domain["available"]:
-            price = float(domain["price"])/1000000
-            if price >= min_price and price <= max_price:
-                print("{:30} : {:10}".format(domain["domain"], price))
-                found_domains[domain["domain"]]=price
-    print('Completed {} of {}'.format(str(counter),str(len(domain_chunks))),'-'*(30-(len(str(counter)+str(len(domain_chunks))))))
-    # API call frequency should be ~ 30 calls per minute 
-    time.sleep(2)
+# # For each domain chunk (ex. 500 domains)
+# counter=0
+# found_domains = {}
+# for domains in domain_chunks:
+#     counter+=1
+#     # Get availability information by calling availability API
+#     availability_res = requests.post(url, json=domains, headers=headers)
+#     # Get only available domains with price range
+#     for domain in json.loads(availability_res.text)["domains"]:
+#         if domain["available"]:
+#             price = float(domain["price"])/1000000
+#             if price <= max_price:
+#                 print("{:30} : {:10}".format(domain["domain"], price))
+#                 found_domains[domain["domain"]]=price
+#     print('Completed {} of {}'.format(str(counter),str(len(domain_chunks))),'-'*(30-(len(str(counter)+str(len(domain_chunks))))))
+#     # API call frequency should be ~ 30 calls per minute 
+#     time.sleep(2)
