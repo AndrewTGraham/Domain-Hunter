@@ -45,14 +45,13 @@ headers = {"Authorization": "sso-key {}:{}".format(api_key, secret_key)}
 
 """
 Load and prep the word_freq dataframe
-Only use the first 100000 words because around there the words start
-appearing ridiculous.
+Only use the first 50000 words because using more has diminishing
+returns. Calculation time v utility tradeoff.
 Words shorter than domain_length are too short to be useful.
 """
 word_freq = pd.read_csv('unigram_freq.csv')
 word_freq['len'] = word_freq['word'].str.len()
-# word_freq = word_freq.iloc[:100000]
-word_freq = word_freq.iloc[:1000]
+word_freq = word_freq.iloc[:50000]
 word_freq = word_freq[word_freq['len'] >= domain_length]
 word_freq.drop(columns=(['len']), inplace=True)
 word_freq.reset_index(inplace=True)
