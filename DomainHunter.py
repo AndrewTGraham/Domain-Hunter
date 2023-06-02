@@ -5,8 +5,11 @@
 domain_length = 5
 # Count of domains to check per API call (500 max)
 chunk_size = 500
-# Price in USD you are willing to pay for a domain.
+# Price in USD you are willing to pay for a domain
 max_price = 1000000
+#Define the top level domain ('com', 'net'...)
+tld = 'com'
+
 # --------------------------------------------------
 
 import requests
@@ -27,8 +30,7 @@ headers = {"Authorization" : "sso-key {}:{}".format(api_key, secret_key)}
     # Words shorting than domain_length are too short to be useful.
 word_freq = pd.read_csv('unigram_freq.csv')
 word_freq['len']  = word_freq['word'].str.len()
-# word_freq=word_freq.iloc[:100000] # TEMP IMPORTANT
-word_freq=word_freq.iloc[:2000]
+word_freq=word_freq.iloc[:100000] # TEMP IMPORTANT
 word_freq=word_freq[word_freq['len']>=domain_length]
 word_freq.drop(columns=(['len']),inplace=True)
 word_freq.reset_index(inplace=True)
@@ -36,7 +38,7 @@ word_freq.reset_index(inplace=True)
 # To make pronouncable words, we will overlap two existing words making sure
 # they have atleast 3 letters of overlap and ensuring that the start of one
 # word is the start of our generated word and the end of the other word is the
-# end of our generated word. For example numBER and iceBERg can make numberg.
+# end of our generated word. For example sURName and bURNt can make surnt.
 # Create two dataframes (word_starts and word_ends__) which contain the start
 # and end of words where the end of the start and the start of the end are the
 # overlap portions. The column start_len in word_starts is the length of
@@ -73,32 +75,29 @@ generated_words.sort_values('frequency',ascending=False,inplace=True)
 # What value is set for keep doesn't matter.
 generated_words.drop_duplicates('word',keep='last',inplace=True)
 
-# # all_domains = list(map('{}.com'.format, list(df[df['len']==11]['word'])))
+all_domains = list(map(('{}.'+tld).format, list(generated_words['word'])))
 
-# all_domains = list(map('{}.com'.format, list(df['word'])))
+# Break all_domains into chunks
+def split_up(array, size):
+    for i in range(0, len(array), size): yield array[i:i + size]
+domain_chunks = list(split_up(all_domains, chunk_size))
 
-# # This function splits all domains into chunks
-# # of a given size
-# def chunks(array, size):
-#     for i in range(0, len(array), size):
-#         yield array[i:i + size]
-# # Split the original array into subarrays
-# domain_chunks = list(chunks(all_domains, chunk_size))
- 
-# # For each domain chunk (ex. 500 domains)
-# counter=0
-# found_domains = {}
-# for domains in domain_chunks:
-#     counter+=1
-#     # Get availability information by calling availability API
-#     availability_res = requests.post(url, json=domains, headers=headers)
-#     # Get only available domains with price range
-#     for domain in json.loads(availability_res.text)["domains"]:
-#         if domain["available"]:
-#             price = float(domain["price"])/1000000
-#             if price <= max_price:
-#                 print("{:30} : {:10}".format(domain["domain"], price))
-#                 found_domains[domain["domain"]]=price
-#     print('Completed {} of {}'.format(str(counter),str(len(domain_chunks))),'-'*(30-(len(str(counter)+str(len(domain_chunks))))))
-#     # API call frequency should be ~ 30 calls per minute 
-#     time.sleep(2)
+# For each domain chunk (ex. 500 domains)
+counter=0
+found_domains = {}
+print('Working through chunks and checking availability.')
+print('The Godaddy API is imperfect, and some of the results is says are available are not.')
+for domains in domain_chunks:
+    counter+=1
+    # Get availability by calling availability API
+    availability_res = requests.post(url, json=domains, headers=headers)
+    # Get only available domains with price range
+    for domain in json.loads(availability_res.text)["domains"]:
+        if domain["available"]:
+            price = float(domain["price"])/1000000
+            if price <= max_price:
+                print("{:30} : {:10}".format(domain["domain"], price))
+                found_domains[domain["domain"]]=price
+    print('Completed {} of {}'.format(str(counter),str(len(domain_chunks))),'-'*(30-(len(str(counter)+str(len(domain_chunks))))))
+    # API call frequency should be ~ 30 calls per minute 
+    time.sleep(2)
