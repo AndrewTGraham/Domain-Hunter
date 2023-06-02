@@ -1,5 +1,5 @@
 # Domain Hunter
-# Read the file READ ME for a better understanding of this code and for sources
+# Read the file README for a better understanding of this code and more notes.
 # Written by Andrew Graham
 # Originally written Feb 11 2023, but later modified and uploaded to github Jun
 # 1-2 2023.
