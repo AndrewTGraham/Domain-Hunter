@@ -1,5 +1,8 @@
 # Domain Hunter
-
+# Read the file READ ME for a better understanding of this code and for sources
+# Written by Andrew Graham
+# Originally written Feb 11 2023, but later modified and uploaded to github Jun
+# 1-2 2023.
 
 
 
@@ -56,6 +59,12 @@ word_freq.reset_index(inplace=True)
 # letters, but in word_ends__ is the length of the word_starts letters needed
 # to create a word of domain_length (foreign key). word_ends__ letters column
 # not have the overlap letters so I can join them easily later.
+# Note: If I was regularly using this, I would store the output of this cell in
+# a separate file so I don't have to generate this each time, but seeing as I'm
+# only running this once per domain length, that's unneccessary for me, but
+# may be useful for others. There are also opportunities to improve the
+# efficiency here, but for a one-time run, it's more efficient to not optimize
+# the code.
 word_starts = pd.DataFrame(columns = ['a_letters', 'a_count', 'overlap','start_len'])
 word_ends__ = pd.DataFrame(columns = ['b_letters', 'b_count', 'overlap','start_len'])
 print('words to process:',len(word_freq))
