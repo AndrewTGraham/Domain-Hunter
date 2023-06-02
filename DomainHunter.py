@@ -9,6 +9,7 @@ GitHub Jun 1-2 2023.
 
 
 
+
 # Edit these variables--------------------------------------------------
 # Domain Length (must be at least 5 letters)
 domain_length = 5
@@ -50,7 +51,8 @@ Words shorter than domain_length are too short to be useful.
 """
 word_freq = pd.read_csv('unigram_freq.csv')
 word_freq['len'] = word_freq['word'].str.len()
-word_freq = word_freq.iloc[:100000]
+# word_freq = word_freq.iloc[:100000]
+word_freq = word_freq.iloc[:1000]
 word_freq = word_freq[word_freq['len'] >= domain_length]
 word_freq.drop(columns=(['len']), inplace=True)
 word_freq.reset_index(inplace=True)
@@ -93,12 +95,23 @@ for index, val in word_freq.iterrows():
         print('Words processed:', index)
     character_len = 3
     while character_len <= domain_length and character_len <= len(val['word']):
-        word_starts.loc[len(word_starts),
-                        word_starts.columns] = val['word'][:character_len], val['count'], val['word'][:character_len][-3:], character_len
-        if -1 * character_len + 3 != 0:  # if -1*character_len+3 == 0, you end up
-            # indexing [-0:] which rather than returning nothing, returns
+        word_starts.loc[
+            len(word_starts),
+            word_starts.columns] = (
+                val['word'][:character_len],
+                val['count'],
+                val['word'][:character_len][-3:],
+                character_len)
+        if -1 * character_len + 3 != 0:  # if -1*character_len+3 == 0, you end
+            # up indexing [-0:] which rather than returning nothing, returns
             # everything
-            word_ends__.loc[len(word_ends__), word_ends__.columns] = val['word'][-1 * character_len + 3:], val['count'], val['word'][-1 * character_len:][:3], domain_length + 3 - character_len
+            word_ends__.loc[
+                len(word_ends__),
+                word_ends__.columns
+                ] = (val['word'][-1 * character_len + 3:],
+                     val['count'],
+                     val['word'][-1 * character_len:][:3],
+                     domain_length + 3 - character_len)
         character_len += 1
 
 """
@@ -113,8 +126,12 @@ word_ends__.reset_index(inplace=True)
 Merge the word starts with the word end and score their frequency
 based on the min of the frequency of each.
 """
-generated_words = word_starts.merge(word_ends__, on=['overlap', 'start_len'], how='inner').drop(columns=['overlap', 'start_len'])
-generated_words['word'] = generated_words['a_letters'] + generated_words['b_letters']
+generated_words = word_starts.merge(
+    word_ends__,
+    on=['overlap', 'start_len'],
+    how='inner').drop(columns=['overlap', 'start_len'])
+generated_words['word'] = (generated_words['a_letters']
+                           + generated_words['b_letters'])
 generated_words['frequency'] = generated_words[['a_count',
                                                 'b_count']].min(axis=1)
 generated_words.drop(columns=['a_letters',
@@ -146,7 +163,8 @@ counter = 0
 found_domains = {}
 print('')
 print('Working through chunks and checking availability.')
-print('The GoDaddy API is imperfect, and some of the results it says are available are not.')
+print(('The GoDaddy API is imperfect, and some of the results it says are '
+       'available are not.'))
 print('If you have seen enough results, manually stop the kernel.')
 for domains in domain_chunks:
     counter += 1
