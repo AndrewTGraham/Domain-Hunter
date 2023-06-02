@@ -23,12 +23,18 @@ tld = 'com'
 
 
 
-# Prep the API and word frequency table---------------------------------
+# Import----------------------------------------------------------------
+
 import requests
 import time
 import json
 import pandas as pd
+# ----------------------------------------------------------------------
 
+
+
+
+# Prep the API and word frequency table---------------------------------
 # Read the keys from their file and prep for the API call.
 with open('GodaddyKeys.txt') as f:
     GodaddyKeys = f.readlines()
